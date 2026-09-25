@@ -1610,7 +1610,7 @@ impl Session {
                         let result = handler
                             .tcpip_forward(&address, &mut returned_port, self)
                             .await?;
-                        if let Some(ref mut enc) = self.common.encrypted {
+                        if let (true, Some(enc)) = (self.common.wants_reply, &mut self.common.encrypted) {
                             if result {
                                 push_packet!(enc.write, {
                                     enc.write.push(msg::REQUEST_SUCCESS);
@@ -1630,7 +1630,7 @@ impl Session {
                         map_err!(ensure_end(r))?;
                         debug!("handler.cancel_tcpip_forward {address:?} {port:?}");
                         let result = handler.cancel_tcpip_forward(&address, port, self).await?;
-                        if let Some(ref mut enc) = self.common.encrypted {
+                        if let (true, Some(enc)) = (self.common.wants_reply, &mut self.common.encrypted) {
                             if result {
                                 push_packet!(enc.write, enc.write.push(msg::REQUEST_SUCCESS))
                             } else {
@@ -1646,7 +1646,7 @@ impl Session {
                         let result = handler
                             .streamlocal_forward(&server_socket_path, self)
                             .await?;
-                        if let Some(ref mut enc) = self.common.encrypted {
+                        if let (true, Some(enc)) = (self.common.wants_reply, &mut self.common.encrypted) {
                             if result {
                                 push_packet!(enc.write, enc.write.push(msg::REQUEST_SUCCESS))
                             } else {
@@ -1662,7 +1662,7 @@ impl Session {
                         let result = handler
                             .cancel_streamlocal_forward(&socket_path, self)
                             .await?;
-                        if let Some(ref mut enc) = self.common.encrypted {
+                        if let (true, Some(enc)) = (self.common.wants_reply, &mut self.common.encrypted) {
                             if result {
                                 push_packet!(enc.write, enc.write.push(msg::REQUEST_SUCCESS))
                             } else {
@@ -1672,7 +1672,7 @@ impl Session {
                         Ok(())
                     }
                     _ => {
-                        if let Some(ref mut enc) = self.common.encrypted {
+                        if let (true, Some(enc)) = (self.common.wants_reply, &mut self.common.encrypted) {
                             push_packet!(enc.write, {
                                 enc.write.push(msg::REQUEST_FAILURE);
                             });
