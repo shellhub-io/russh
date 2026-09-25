@@ -77,6 +77,10 @@ pub enum Msg {
         address: String,
         port: u32,
     },
+    GlobalRequest {
+        name: String,
+        reply_channel: Option<oneshot::Sender<bool>>,
+    },
     Disconnect {
         reason: crate::Disconnect,
         description: String,
@@ -239,6 +243,23 @@ impl Handle {
                 Err(()) // crate::Error::Disconnect
             }
         }
+    }
+
+    /// Sends a global request with the given name and no payload. When `want_reply` is set, waits
+    /// for the client to answer, whether it accepts or refuses.
+    pub async fn global_request(&self, name: String, want_reply: bool) -> Result<bool, ()> {
+        let (reply_send, reply_recv) = oneshot::channel();
+        self.sender
+            .send(Msg::GlobalRequest {
+                name,
+                reply_channel: want_reply.then_some(reply_send),
+            })
+            .await
+            .map_err(|_| ())?;
+        if want_reply {
+            return reply_recv.await.map_err(|_| ());
+        }
+        Ok(false)
     }
 
     /// Open an agent forwarding channel. This can be used once the client has
@@ -607,6 +628,12 @@ impl Session {
                 reply_channel,
             } => {
                 self.cancel_tcpip_forward(&address, port, reply_channel)?;
+            }
+            Msg::GlobalRequest {
+                name,
+                reply_channel,
+            } => {
+                self.global_request(&name, reply_channel)?;
             }
             Msg::Disconnect {
                 reason,
@@ -1175,6 +1202,26 @@ impl Session {
             push_packet!(enc.write, {
                 msg::GLOBAL_REQUEST.encode(&mut enc.write)?;
                 "keepalive@openssh.com".encode(&mut enc.write)?;
+                want_reply.encode(&mut enc.write)?;
+            })
+        }
+        Ok(())
+    }
+
+    fn global_request(
+        &mut self,
+        name: &str,
+        reply_channel: Option<oneshot::Sender<bool>>,
+    ) -> Result<(), Error> {
+        if let Some(ref mut enc) = self.common.encrypted {
+            let want_reply = u8::from(reply_channel.is_some());
+            if let Some(reply_channel) = reply_channel {
+                self.open_global_requests
+                    .push_back(GlobalRequestResponse::Generic(reply_channel));
+            }
+            push_packet!(enc.write, {
+                msg::GLOBAL_REQUEST.encode(&mut enc.write)?;
+                name.encode(&mut enc.write)?;
                 want_reply.encode(&mut enc.write)?;
             })
         }

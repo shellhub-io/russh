@@ -830,6 +830,8 @@ pub(crate) enum GlobalRequestResponse {
     /// request was for StreamLocalForward, sends true for success or false for failure
     StreamLocalForward(oneshot::Sender<bool>),
     CancelStreamLocalForward(oneshot::Sender<bool>),
+    /// request was a named global request, sends whether the peer accepted it
+    Generic(oneshot::Sender<bool>),
 }
 
 #[cfg(test)]

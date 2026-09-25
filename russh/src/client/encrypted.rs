@@ -970,6 +970,9 @@ impl Session {
                         map_err!(ensure_end(&r))?;
                         let _ = return_channel.send(true);
                     }
+                    Some(GlobalRequestResponse::Generic(return_channel)) => {
+                        let _ = return_channel.send(true);
+                    }
                     None => {
                         error!("Received global request failure for unknown request!")
                     }
@@ -999,6 +1002,9 @@ impl Session {
                         let _ = return_channel.send(false);
                     }
                     Some(GlobalRequestResponse::CancelStreamLocalForward(return_channel)) => {
+                        let _ = return_channel.send(false);
+                    }
+                    Some(GlobalRequestResponse::Generic(return_channel)) => {
                         let _ = return_channel.send(false);
                     }
                     None => {
